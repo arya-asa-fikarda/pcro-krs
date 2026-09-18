@@ -1,0 +1,13 @@
+# Project Handoff
+- **Status**: Phase 2 migrations written, **not yet executed** (`php artisan migrate` pending review)
+- **Database**: pcro_krs (Host: 127.0.0.1, Port: 5432, User: postgres, Pass: root)
+- **Migration files**:
+  - `database/migrations/2026_09_18_210658_create_students_table.php`
+  - `database/migrations/2026_09_18_210659_create_courses_table.php`
+  - `database/migrations/2026_09_18_210700_create_enrollments_table.php`
+- **Decisions**:
+  - Decision: Hard delete enrollments (no `softDeletes`). Reason: 5M-row list/export must not pay tombstone cost; TS-12 only requires enrollment removal. Impact: deleted KRS rows cannot be restored from DB.
+  - Decision: Semester stored as `GANJIL` / `GENAP` (not `1`/`2`). Reason: matches spec enum wording for UI filters. Impact: API and seed must use those strings.
+  - Decision: FK `ON DELETE RESTRICT`. Reason: deleting an enrollment must not cascade to student/course; deleting a student/course with enrollments is rejected. Impact: orphan cleanup is explicit, not automatic.
+  - Decision: No `pg_trgm` / GIN in this phase. Reason: live search `LIKE '%x%'` needs trigram later; btree composites target filter/sort/join first. Impact: contains-search on 5M joins may still seq-scan parent tables until a later index pass.
+- **Next Step**: After schema approval, run `php artisan migrate`, then Phase 3 — Eloquent models, PHP enums, factories (not 5M seeder yet)
