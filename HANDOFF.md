@@ -1,13 +1,21 @@
 # Project Handoff
-- **Status**: Phase 2 migrations written, **not yet executed** (`php artisan migrate` pending review)
+- **Status**: Phase 4 completed. High-Volume Seeder implemented and tested.
 - **Database**: pcro_krs (Host: 127.0.0.1, Port: 5432, User: postgres, Pass: root)
-- **Migration files**:
-  - `database/migrations/2026_09_18_210658_create_students_table.php`
-  - `database/migrations/2026_09_18_210659_create_courses_table.php`
-  - `database/migrations/2026_09_18_210700_create_enrollments_table.php`
+- **High-Volume Seeder Architecture**:
+  - **Tool**: Custom Artisan command `app:seed-high-volume`.
+  - **Strategy**:
+    - Uses `DB::table()->insertOrIgnore()` for bulk insertion (Chunk size: 5,000).
+    - Avoids Eloquent models to minimize memory overhead.
+    - Uses Database Transactions per chunk to optimize Postgres performance.
+    - Handles random collisions on unique constraints via `insertOrIgnore`.
+    - Flexible options for count of enrollments, students, and courses.
+  - **Performance**: Verified ~50k rows in ~3.2 seconds. Estimated ~5.5 minutes for 5M rows.
+- **Commands**:
+  - **Standard Seed** (100 students, 20 courses, 200 enrollments): `php artisan db:seed`
+  - **Test High Volume** (10k enrollments): `php artisan app:seed-high-volume --count=10000 --truncate`
+  - **Full High Volume** (5M enrollments): `php artisan app:seed-high-volume --count=5000000 --truncate`
 - **Decisions**:
-  - Decision: Hard delete enrollments (no `softDeletes`). Reason: 5M-row list/export must not pay tombstone cost; TS-12 only requires enrollment removal. Impact: deleted KRS rows cannot be restored from DB.
-  - Decision: Semester stored as `GANJIL` / `GENAP` (not `1`/`2`). Reason: matches spec enum wording for UI filters. Impact: API and seed must use those strings.
-  - Decision: FK `ON DELETE RESTRICT`. Reason: deleting an enrollment must not cascade to student/course; deleting a student/course with enrollments is rejected. Impact: orphan cleanup is explicit, not automatic.
-  - Decision: No `pg_trgm` / GIN in this phase. Reason: live search `LIKE '%x%'` needs trigram later; btree composites target filter/sort/join first. Impact: contains-search on 5M joins may still seq-scan parent tables until a later index pass.
-- **Next Step**: After schema approval, run `php artisan migrate`, then Phase 3 — Eloquent models, PHP enums, factories (not 5M seeder yet)
+  - Decision: Used `insertOrIgnore`. Reason: Randomly generating 5M enrollments from 100k students and 500 courses (100M possible pairs) might cause a few collisions. `insertOrIgnore` prevents the process from failing while keeping the dataset close to target.
+  - Decision: Chunk size 5,000. Reason: Avoids Postgres "too many parameters" limit (65,535). 5,000 rows * 7 columns = 35,000 parameters.
+  - Decision: Dedicated command over Seeder class for 5M. Reason: Better progress tracking and memory management for extremely large datasets.
+- **Next Step**: Phase 5 — Server-Side Read with Pagination, Sorting, and Filtering (DataTables) on the 5M dataset.

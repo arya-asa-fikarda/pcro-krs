@@ -15,11 +15,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Default seed for development/testing
+        $this->call([
+            StudentSeeder::class,
+            CourseSeeder::class,
+            EnrollmentSeeder::class,
+        ]);
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Admin PCRO',
+            'email' => 'admin@pcro.test',
+            'password' => bcrypt('password'),
         ]);
+
+        $this->command->info('Default seeding completed.');
+        $this->command->warn('To run 5M high-volume seeding, use: php artisan app:seed-high-volume');
     }
 }
