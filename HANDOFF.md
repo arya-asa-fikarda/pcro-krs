@@ -1,21 +1,19 @@
 # Project Handoff
-- **Status**: Phase 4 completed. High-Volume Seeder implemented and tested.
+- **Status**: Phase 5 (Server-Side Read, Pagination, Sorting, Live Search & Filtering) **COMPLETED & VERIFIED**
 - **Database**: pcro_krs (Host: 127.0.0.1, Port: 5432, User: postgres, Pass: root)
-- **High-Volume Seeder Architecture**:
-  - **Tool**: Custom Artisan command `app:seed-high-volume`.
-  - **Strategy**:
-    - Uses `DB::table()->insertOrIgnore()` for bulk insertion (Chunk size: 5,000).
-    - Avoids Eloquent models to minimize memory overhead.
-    - Uses Database Transactions per chunk to optimize Postgres performance.
-    - Handles random collisions on unique constraints via `insertOrIgnore`.
-    - Flexible options for count of enrollments, students, and courses.
-  - **Performance**: Verified ~50k rows in ~3.2 seconds. Estimated ~5.5 minutes for 5M rows.
-- **Commands**:
-  - **Standard Seed** (100 students, 20 courses, 200 enrollments): `php artisan db:seed`
-  - **Test High Volume** (10k enrollments): `php artisan app:seed-high-volume --count=10000 --truncate`
-  - **Full High Volume** (5M enrollments): `php artisan app:seed-high-volume --count=5000000 --truncate`
-- **Decisions**:
-  - Decision: Used `insertOrIgnore`. Reason: Randomly generating 5M enrollments from 100k students and 500 courses (100M possible pairs) might cause a few collisions. `insertOrIgnore` prevents the process from failing while keeping the dataset close to target.
-  - Decision: Chunk size 5,000. Reason: Avoids Postgres "too many parameters" limit (65,535). 5,000 rows * 7 columns = 35,000 parameters.
-  - Decision: Dedicated command over Seeder class for 5M. Reason: Better progress tracking and memory management for extremely large datasets.
-- **Next Step**: Phase 5 — Server-Side Read with Pagination, Sorting, and Filtering (DataTables) on the 5M dataset.
+
+- **Completed Deliverables**:
+  - `app/Http/Controllers/EnrollmentController.php` (Server-side pagination, eager loading, header sorting, live search & AND/OR filter logic).
+  - `resources/js/Pages/Enrollments/Index.vue` (Vue 3 + Inertia.js table with debounced live search, sorting indicators, quick filters, AND/OR selector).
+  - `resources/views/app.blade.php` (Root Blade layout with Bootstrap 5 CDN & Vite integration).
+  - `resources/js/app.js` (Clean Vue 3 + Inertia entrypoint).
+  - `vite.config.js` (Configured `@vitejs/plugin-vue`).
+
+- **Requirement Compliance Verification (PDF Spec)**:
+  - **TS-05 (Server-side Pagination)**: Verified (10, 25, 50, 100 per page on 10k dataset).
+  - **TS-06 (Header Sorting)**: Verified (ASC/DESC on NIM, Name, Course Code/Name, Year, Semester, Status).
+  - **TS-07 (Quick Filter)**: Verified (Semester & Status filters).
+  - **TS-08 (Live Searching)**: Verified (Debounced 400ms search across student NIM/Name & course Code/Name).
+  - **TS-09 & TS-10 (Advanced Query AND/OR)**: Verified (Dynamic match mode handling in Controller).
+
+- **Next Step**: Phase 6 — Atomic Transaction Create/Upsert (3-table insertion in single DB transaction, tight FE/BE validation).

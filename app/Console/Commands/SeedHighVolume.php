@@ -4,10 +4,10 @@ namespace App\Console\Commands;
 
 use App\Enums\EnrollmentStatus;
 use App\Enums\Semester;
+use Carbon\Carbon;
+use Faker\Factory as Faker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Faker\Factory as Faker;
-use Carbon\Carbon;
 
 class SeedHighVolume extends Command
 {
@@ -58,7 +58,7 @@ class SeedHighVolume extends Command
             $toCreate = $studentCount - $existingStudents;
             $this->info("Creating $toCreate students...");
             $bar = $this->output->createProgressBar($toCreate);
-            
+
             for ($i = 0; $i < $toCreate; $i += $chunkSize) {
                 $batchSize = min($chunkSize, $toCreate - $i);
                 $students = [];
@@ -105,20 +105,20 @@ class SeedHighVolume extends Command
         $statuses = array_column(EnrollmentStatus::cases(), 'value');
         $years = [];
         for ($y = 2020; $y <= 2026; $y++) {
-            $years[] = "$y/".($y+1);
+            $years[] = "$y/".($y + 1);
         }
 
         // 4. Seed Enrollments
         $this->info("Seeding $count enrollments in chunks of $chunkSize...");
         $bar = $this->output->createProgressBar($count);
-        
+
         $totalInserted = 0;
         $startTime = microtime(true);
 
         for ($i = 0; $i < $count; $i += $chunkSize) {
             $batchSize = min($chunkSize, $count - $i);
             $enrollments = [];
-            
+
             for ($j = 0; $j < $batchSize; $j++) {
                 $enrollments[] = [
                     'student_id' => $faker->randomElement($studentIds),
@@ -144,13 +144,13 @@ class SeedHighVolume extends Command
 
         $bar->finish();
         $this->newLine();
-        
+
         $endTime = microtime(true);
         $duration = round($endTime - $startTime, 2);
 
         $this->info("Seeding completed in $duration seconds!");
         $this->info("Target: $count, Successfully Inserted: $totalInserted");
-        
+
         $finalCount = DB::table('enrollments')->count();
         $this->info("Final total enrollment count in DB: $finalCount");
 
