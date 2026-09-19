@@ -166,4 +166,99 @@ class EnrollmentController extends Controller
 
         return redirect()->back()->with('success', 'Data KRS berhasil dihapus!');
     }
+
+    public function exportCsv(Request $request)
+    {
+        $query = Enrollment::query()
+            ->select([
+                'enrollments.id',
+                'enrollments.student_id',
+                'enrollments.course_id',
+                'enrollments.academic_year',
+                'enrollments.semester',
+                'enrollments.status',
+                'enrollments.created_at',
+            ])
+            ->with([
+                'student:id,nim,name',
+                'course:id,code,name',
+            ]);
+
+        $matchMode = strtoupper($request->input('match_mode', 'AND')) === 'OR' ? 'OR' : 'AND';
+        $hasSearch = $request->filled('search');
+        $hasSemester = $request->filled('semester');
+        $hasStatus = $request->filled('status');
+
+        if ($hasSearch || $hasSemester || $hasStatus) {
+            $query->where(function ($q) use ($request, $matchMode, $hasSearch, $hasSemester, $hasStatus) {
+                $boolean = $matchMode === 'OR' ? 'orWhere' : 'where';
+
+                if ($hasSearch) {
+                    $search = $request->search;
+                    $q->$boolean(function ($subQ) use ($search) {
+                        $subQ->whereHas('student', function ($sq) use ($search) {
+                            $sq->where('nim', 'LIKE', "{$search}%")
+                                ->orWhere('name', 'ILIKE', "%{$search}%");
+                        })->orWhereHas('course', function ($cq) use ($search) {
+                            $cq->where('code', 'ILIKE', "{$search}%")
+                                ->orWhere('name', 'ILIKE', "%{$search}%");
+                        });
+                    });
+                }
+
+                if ($hasSemester) {
+                    $q->$boolean('semester', $request->semester);
+                }
+
+                if ($hasStatus) {
+                    $q->$boolean('status', $request->status);
+                }
+            });
+        }
+
+        $filename = 'krs_export_' . date('Ymd_His') . '.csv';
+
+        // TS-13: Stream Download Resmi + Konversi Enum ke String (Zero Out-of-Memory)
+        return response()->streamDownload(function () use ($query) {
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            $handle = fopen('php://output', 'w');
+
+            // Header Kolom CSV
+            fputcsv($handle, ['ID Enrollment', 'NIM Mahasiswa', 'Nama Mahasiswa', 'Kode MK', 'Nama MK', 'Tahun Ajaran', 'Semester', 'Status KRS', 'Tanggal Dibuat']);
+
+            // Stream Data per Chunk 1.000 row
+            $query->chunk(1000, function ($enrollments) use ($handle) {
+                foreach ($enrollments as $row) {
+                    // Konversi Enum Object ke String murni (.value)
+                    $semesterStr = $row->semester instanceof \BackedEnum ? $row->semester->value : (string) $row->semester;
+                    $statusStr = $row->status instanceof \BackedEnum ? $row->status->value : (string) $row->status;
+
+                    fputcsv($handle, [
+                        $row->id,
+                        $row->student?->nim ?? '-',
+                        $row->student?->name ?? '-',
+                        $row->course?->code ?? '-',
+                        $row->course?->name ?? '-',
+                        $row->academic_year,
+                        $semesterStr,
+                        $statusStr,
+                        $row->created_at?->toDateTimeString() ?? (string) $row->created_at,
+                    ]);
+                }
+
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+            });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
 }

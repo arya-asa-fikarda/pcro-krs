@@ -115,6 +115,10 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                 <h2 class="h3 font-weight-bold text-primary mb-1">Sistem KRS Akademik</h2>
                 <p class="text-muted small mb-0">Single Page CRUD & High-Volume Data Management (5 Juta Row Ready)</p>
             </div>
+            <a :href="`/enrollments/export?search=${search}&semester=${semester}&status=${status}&match_mode=${matchMode}`"
+                class="btn btn-outline-success fw-bold shadow-sm" target="_blank">
+                📥 Export CSV (5M Ready)
+            </a>
             <button @click="showCreateModal = true" class="btn btn-primary fw-bold shadow-sm">
                 + Tambah KRS Baru (Atomic 3-Table)
             </button>
@@ -182,7 +186,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                         <tr>
                             <th @click="handleSort('student_nim')" style="cursor: pointer;">
                                 NIM <span v-if="sortField === 'student_nim'">{{ sortDirection === 'asc' ? '▲' : '▼'
-                                    }}</span>
+                                }}</span>
                             </th>
                             <th @click="handleSort('student_name')" style="cursor: pointer;">
                                 Nama Mahasiswa <span v-if="sortField === 'student_name'">{{ sortDirection === 'asc' ?
@@ -190,7 +194,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                             </th>
                             <th @click="handleSort('course_code')" style="cursor: pointer;">
                                 Kode MK <span v-if="sortField === 'course_code'">{{ sortDirection === 'asc' ? '▲' : '▼'
-                                    }}</span>
+                                }}</span>
                             </th>
                             <th @click="handleSort('course_name')" style="cursor: pointer;">
                                 Nama Mata Kuliah <span v-if="sortField === 'course_name'">{{ sortDirection === 'asc' ?
@@ -239,7 +243,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
             <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
                 <small class="text-muted">
                     Menampilkan <strong>{{ enrollments.from || 0 }}</strong> sampai <strong>{{ enrollments.to || 0
-                        }}</strong> dari total <strong>{{ enrollments.total?.toLocaleString() }}</strong> KRS
+                    }}</strong> dari total <strong>{{ enrollments.total?.toLocaleString() }}</strong> KRS
                 </small>
                 <div class="btn-group">
                     <Link v-for="link in enrollments.links" :key="link.label" :href="link.url || '#'" class="btn btn-sm"
@@ -271,7 +275,8 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">Nama Mahasiswa</label>
                                     <input v-model="form.student_name" type="text" class="form-control"
-                                        :class="{ 'is-invalid': form.errors.student_name }" placeholder="Budi Santoso" />
+                                        :class="{ 'is-invalid': form.errors.student_name }"
+                                        placeholder="Budi Santoso" />
                                     <div v-if="form.errors.student_name" class="invalid-feedback">{{
                                         form.errors.student_name }}</div>
                                 </div>
