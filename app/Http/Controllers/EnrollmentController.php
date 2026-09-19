@@ -169,19 +169,23 @@ class EnrollmentController extends Controller
 
     public function exportCsv(Request $request)
     {
-        $query = Enrollment::query()
+        // Hilangkan batasan eksekusi waktu & memori PHP untuk ekspor 5 juta data
+        set_time_limit(0);
+        ini_set('memory_limit', '-1');
+
+        $query = DB::table('enrollments')
+            ->join('students', 'enrollments.student_id', '=', 'students.id')
+            ->join('courses', 'enrollments.course_id', '=', 'courses.id')
             ->select([
                 'enrollments.id',
-                'enrollments.student_id',
-                'enrollments.course_id',
+                'students.nim as student_nim',
+                'students.name as student_name',
+                'courses.code as course_code',
+                'courses.name as course_name',
                 'enrollments.academic_year',
                 'enrollments.semester',
                 'enrollments.status',
                 'enrollments.created_at',
-            ])
-            ->with([
-                'student:id,nim,name',
-                'course:id,code,name',
             ]);
 
         $matchMode = strtoupper($request->input('match_mode', 'AND')) === 'OR' ? 'OR' : 'AND';
@@ -196,29 +200,25 @@ class EnrollmentController extends Controller
                 if ($hasSearch) {
                     $search = $request->search;
                     $q->$boolean(function ($subQ) use ($search) {
-                        $subQ->whereHas('student', function ($sq) use ($search) {
-                            $sq->where('nim', 'LIKE', "{$search}%")
-                                ->orWhere('name', 'ILIKE', "%{$search}%");
-                        })->orWhereHas('course', function ($cq) use ($search) {
-                            $cq->where('code', 'ILIKE', "{$search}%")
-                                ->orWhere('name', 'ILIKE', "%{$search}%");
-                        });
+                        $subQ->where('students.nim', 'LIKE', "{$search}%")
+                            ->orWhere('students.name', 'ILIKE', "%{$search}%")
+                            ->orWhere('courses.code', 'ILIKE', "{$search}%")
+                            ->orWhere('courses.name', 'ILIKE', "%{$search}%");
                     });
                 }
 
                 if ($hasSemester) {
-                    $q->$boolean('semester', $request->semester);
+                    $q->$boolean('enrollments.semester', $request->semester);
                 }
 
                 if ($hasStatus) {
-                    $q->$boolean('status', $request->status);
+                    $q->$boolean('enrollments.status', $request->status);
                 }
             });
         }
 
         $filename = 'krs_export_' . date('Ymd_His') . '.csv';
 
-        // TS-13: Stream Download Resmi + Konversi Enum ke String (Zero Out-of-Memory)
         return response()->streamDownload(function () use ($query) {
             if (ob_get_level() > 0) {
                 ob_end_clean();
@@ -229,33 +229,33 @@ class EnrollmentController extends Controller
             // Header Kolom CSV
             fputcsv($handle, ['ID Enrollment', 'NIM Mahasiswa', 'Nama Mahasiswa', 'Kode MK', 'Nama MK', 'Tahun Ajaran', 'Semester', 'Status KRS', 'Tanggal Dibuat']);
 
-            // Stream Data per Chunk 1.000 row
-            $query->chunk(1000, function ($enrollments) use ($handle) {
-                foreach ($enrollments as $row) {
-                    // Konversi Enum Object ke String murni (.value)
-                    $semesterStr = $row->semester instanceof \BackedEnum ? $row->semester->value : (string) $row->semester;
-                    $statusStr = $row->status instanceof \BackedEnum ? $row->status->value : (string) $row->status;
+            // TS-13: Cursor Generator Stream (Sangat Cepat & Tanpa Overhead OFFSET)
+            $counter = 0;
+            foreach ($query->orderBy('enrollments.id', 'asc')->cursor() as $row) {
+                fputcsv($handle, [
+                    $row->id,
+                    $row->student_nim,
+                    $row->student_name,
+                    $row->course_code,
+                    $row->course_name,
+                    $row->academic_year,
+                    $row->semester,
+                    $row->status,
+                    $row->created_at,
+                ]);
 
-                    fputcsv($handle, [
-                        $row->id,
-                        $row->student?->nim ?? '-',
-                        $row->student?->name ?? '-',
-                        $row->course?->code ?? '-',
-                        $row->course?->name ?? '-',
-                        $row->academic_year,
-                        $semesterStr,
-                        $statusStr,
-                        $row->created_at?->toDateTimeString() ?? (string) $row->created_at,
-                    ]);
+                $counter++;
+                // Siram data ke browser setiap 5.000 baris
+                if ($counter % 5000 === 0) {
+                    if (ob_get_level() > 0) {
+                        ob_flush();
+                    }
+                    flush();
                 }
-
-                if (ob_get_level() > 0) {
-                    ob_flush();
-                }
-                flush();
-            });
+            }
 
             fclose($handle);
+            exit;
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
