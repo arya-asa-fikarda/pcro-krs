@@ -144,4 +144,26 @@ class EnrollmentController extends Controller
             return redirect()->back()->with('error', 'Gagal menambahkan KRS: ' . $e->getMessage());
         }
     }
+
+    public function update(Request $request, Enrollment $enrollment)
+    {
+        // TS-11: Validasi Update
+        $validated = $request->validate([
+            'academic_year' => ['required', 'string', 'regex:/^[0-9]{4}\/[0-9]{4}$/'],
+            'semester' => ['required', 'in:GANJIL,GENAP'],
+            'status' => ['required', 'in:DRAFT,SUBMITTED,APPROVED,REJECTED'],
+        ]);
+
+        $enrollment->update($validated);
+
+        return redirect()->back()->with('success', 'Data KRS berhasil diperbarui!');
+    }
+
+    public function destroy(Enrollment $enrollment)
+    {
+        // TS-12: Hard Delete Enrollment (Tanpa menghapus student/course)
+        $enrollment->delete();
+
+        return redirect()->back()->with('success', 'Data KRS berhasil dihapus!');
+    }
 }

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { router, Link, useForm, usePage } from '@inertiajs/vue3';
+import { router, Link, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
     enrollments: Object,
@@ -17,6 +17,8 @@ const sortField = ref(props.filters.sort_field || 'created_at');
 const sortDirection = ref(props.filters.sort_direction || 'desc');
 
 const showCreateModal = ref(false);
+const showEditModal = ref(false);
+const selectedEnrollment = ref(null);
 
 const form = useForm({
     student_nim: '',
@@ -28,6 +30,12 @@ const form = useForm({
     academic_year: '2025/2026',
     semester: 'GANJIL',
     status: 'DRAFT',
+});
+
+const editForm = useForm({
+    academic_year: '',
+    semester: '',
+    status: '',
 });
 
 let debounceTimer = null;
@@ -74,6 +82,28 @@ const submitCreate = () => {
     });
 };
 
+const openEditModal = (item) => {
+    selectedEnrollment.value = item;
+    editForm.academic_year = item.academic_year;
+    editForm.semester = item.semester;
+    editForm.status = item.status;
+    showEditModal.value = true;
+};
+
+const submitUpdate = () => {
+    editForm.put(`/enrollments/${selectedEnrollment.value.id}`, {
+        onSuccess: () => {
+            showEditModal.value = false;
+        },
+    });
+};
+
+const deleteEnrollment = (id) => {
+    if (confirm('Apakah Anda yakin ingin menghapus data KRS ini?')) {
+        router.delete(`/enrollments/${id}`);
+    }
+};
+
 watch([semester, status, matchMode, perPage], () => updateParams());
 </script>
 
@@ -85,23 +115,18 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                 <h2 class="h3 font-weight-bold text-primary mb-1">Sistem KRS Akademik</h2>
                 <p class="text-muted small mb-0">Single Page CRUD & High-Volume Data Management (5 Juta Row Ready)</p>
             </div>
-            <!-- Button Trigger Modal Create -->
             <button @click="showCreateModal = true" class="btn btn-primary fw-bold shadow-sm">
                 + Tambah KRS Baru (Atomic 3-Table)
             </button>
         </div>
 
-        <!-- Flash Message Notification -->
+        <!-- Flash Message -->
         <div v-if="$page.props.flash?.success" class="alert alert-success alert-dismissible fade show" role="alert">
             {{ $page.props.flash.success }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div v-if="$page.props.flash?.error" class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ $page.props.flash.error }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
 
-        <!-- Filter & Search Panel -->
+        <!-- Filter Panel -->
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
                 <div class="row g-3">
@@ -174,6 +199,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                             <th @click="handleSort('academic_year')" style="cursor: pointer;">Tahun Ajaran</th>
                             <th @click="handleSort('semester')" style="cursor: pointer;">Semester</th>
                             <th @click="handleSort('status')" style="cursor: pointer;">Status</th>
+                            <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -193,9 +219,17 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                     'bg-danger': item.status === 'REJECTED'
                                 }">{{ item.status }}</span>
                             </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button @click="openEditModal(item)" class="btn btn-outline-primary"
+                                        title="Edit Status/Semester">Edit</button>
+                                    <button @click="deleteEnrollment(item.id)" class="btn btn-outline-danger"
+                                        title="Hapus KRS">Hapus</button>
+                                </div>
+                            </td>
                         </tr>
                         <tr v-if="enrollments.data.length === 0">
-                            <td colspan="7" class="text-center py-5 text-muted">Tidak ada data KRS yang cocok.</td>
+                            <td colspan="8" class="text-center py-5 text-muted">Tidak ada data KRS yang cocok.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -214,7 +248,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
             </div>
         </div>
 
-        <!-- Modal Create KRS (TS-02 & TS-03) -->
+        <!-- Modal Create -->
         <div v-if="showCreateModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
@@ -254,7 +288,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                             <h6 class="fw-bold text-primary mb-3">2. Data Mata Kuliah (courses)</h6>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Kode MK (Misal: IF101)</label>
+                                    <label class="form-label small fw-bold">Kode MK (IF101)</label>
                                     <input v-model="form.course_code" type="text" class="form-control"
                                         :class="{ 'is-invalid': form.errors.course_code }" placeholder="IF101" />
                                     <div v-if="form.errors.course_code" class="invalid-feedback">{{
@@ -315,6 +349,58 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                 class="btn btn-secondary">Batal</button>
                             <button type="submit" :disabled="form.processing" class="btn btn-primary fw-bold">
                                 {{ form.processing ? 'Menyimpan...' : 'Simpan KRS (Atomic Transaction)' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Edit (TS-11) -->
+        <div v-if="showEditModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-md modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold">Edit Status / Semester KRS (TS-11)</h5>
+                        <button @click="showEditModal = false" type="button" class="btn-close"></button>
+                    </div>
+                    <form @submit.prevent="submitUpdate">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Tahun Ajaran</label>
+                                <input v-model="editForm.academic_year" type="text" class="form-control"
+                                    :class="{ 'is-invalid': editForm.errors.academic_year }" />
+                                <div v-if="editForm.errors.academic_year" class="invalid-feedback">{{
+                                    editForm.errors.academic_year }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Semester</label>
+                                <select v-model="editForm.semester" class="form-select"
+                                    :class="{ 'is-invalid': editForm.errors.semester }">
+                                    <option value="GANJIL">GANJIL</option>
+                                    <option value="GENAP">GENAP</option>
+                                </select>
+                                <div v-if="editForm.errors.semester" class="invalid-feedback">{{
+                                    editForm.errors.semester }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Status KRS</label>
+                                <select v-model="editForm.status" class="form-select"
+                                    :class="{ 'is-invalid': editForm.errors.status }">
+                                    <option value="DRAFT">DRAFT</option>
+                                    <option value="SUBMITTED">SUBMITTED</option>
+                                    <option value="APPROVED">APPROVED</option>
+                                    <option value="REJECTED">REJECTED</option>
+                                </select>
+                                <div v-if="editForm.errors.status" class="invalid-feedback">{{ editForm.errors.status }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button @click="showEditModal = false" type="button"
+                                class="btn btn-secondary">Batal</button>
+                            <button type="submit" :disabled="editForm.processing" class="btn btn-warning fw-bold">
+                                {{ editForm.processing ? 'Memperbarui...' : 'Simpan Perubahan' }}
                             </button>
                         </div>
                     </form>
