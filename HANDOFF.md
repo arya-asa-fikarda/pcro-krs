@@ -10,7 +10,7 @@
   - `vite.config.js` (Configured `@vitejs/plugin-vue`).
 
 - **Requirement Compliance Verification (PDF Spec)**:
-  - **TS-05 (Server-side Pagination)**: Verified (10, 25, 50, 100 per page on 10k dataset).
+  - **TS-05 (Server-side Pagination)**: Verified (10, 25, 50, 100 per page on dataset).
   - **TS-06 (Header Sorting)**: Verified (ASC/DESC on NIM, Name, Course Code/Name, Year, Semester, Status).
   - **TS-07 (Quick Filter)**: Verified (Semester & Status filters).
   - **TS-08 (Live Searching)**: Verified (Debounced 400ms search across student NIM/Name & course Code/Name).
