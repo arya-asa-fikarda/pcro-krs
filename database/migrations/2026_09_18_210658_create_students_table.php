@@ -24,8 +24,10 @@ return new class extends Migration
             $table->index('name', 'students_name_index');
         });
 
-        DB::statement("ALTER TABLE students ADD CONSTRAINT students_nim_format_check CHECK (nim ~ '^[0-9]{8,12}$')");
-        DB::statement('ALTER TABLE students ADD CONSTRAINT students_name_length_check CHECK (char_length(name) BETWEEN 3 AND 100)');
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE students ADD CONSTRAINT students_nim_format_check CHECK (nim ~ '^[0-9]{8,12}$')");
+            DB::statement('ALTER TABLE students ADD CONSTRAINT students_name_length_check CHECK (char_length(name) BETWEEN 3 AND 100)');
+        }
     }
 
     /**

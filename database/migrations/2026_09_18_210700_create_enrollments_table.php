@@ -42,9 +42,11 @@ return new class extends Migration
             );
         });
 
-        DB::statement("ALTER TABLE enrollments ADD CONSTRAINT enrollments_academic_year_format_check CHECK (academic_year ~ '^[0-9]{4}/[0-9]{4}$')");
-        DB::statement("ALTER TABLE enrollments ADD CONSTRAINT enrollments_semester_check CHECK (semester IN ('GANJIL', 'GENAP'))");
-        DB::statement("ALTER TABLE enrollments ADD CONSTRAINT enrollments_status_check CHECK (status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'))");
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE enrollments ADD CONSTRAINT enrollments_academic_year_format_check CHECK (academic_year ~ '^[0-9]{4}/[0-9]{4}$')");
+            DB::statement("ALTER TABLE enrollments ADD CONSTRAINT enrollments_semester_check CHECK (semester IN ('GANJIL', 'GENAP'))");
+            DB::statement("ALTER TABLE enrollments ADD CONSTRAINT enrollments_status_check CHECK (status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'))");
+        }
     }
 
     /**
