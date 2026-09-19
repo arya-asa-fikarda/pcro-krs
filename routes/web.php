@@ -8,3 +8,4 @@ Route::get('/', function () {
 });
 
 Route::get('/enrollments', [EnrollmentController::class, 'index'])->name('enrollments.index');
+Route::post('/enrollments', [EnrollmentController::class, 'store'])->name('enrollments.store');

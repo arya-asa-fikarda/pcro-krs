@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,7 +31,6 @@ class EnrollmentController extends Controller
 
         $matchMode = strtoupper($request->input('match_mode', 'AND')) === 'OR' ? 'OR' : 'AND';
 
-        // TS-07, TS-08, TS-09, TS-10: Filtering & Search Logic
         $hasSearch = $request->filled('search');
         $hasSemester = $request->filled('semester');
         $hasStatus = $request->filled('status');
@@ -60,7 +62,6 @@ class EnrollmentController extends Controller
             });
         }
 
-        // TS-06: Sorting
         $sortField = $request->input('sort_field', 'created_at');
         $sortDirection = strtolower($request->input('sort_direction', 'desc')) === 'asc' ? 'asc' : 'desc';
 
@@ -75,13 +76,72 @@ class EnrollmentController extends Controller
             default => $query->orderBy('enrollments.id', $sortDirection),
         };
 
-        // TS-05: Server-Side Pagination
         $perPage = in_array((int) $request->per_page, [10, 25, 50, 100], true) ? (int) $request->per_page : 10;
         $enrollments = $query->paginate($perPage)->withQueryString();
 
         return Inertia::render('Enrollments/Index', [
             'enrollments' => $enrollments,
             'filters' => $request->only(['search', 'semester', 'status', 'match_mode', 'sort_field', 'sort_direction', 'per_page']),
+            'flash' => [
+                'success' => session('success'),
+                'error' => session('error'),
+            ],
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        // TS-04: Backend Validation (Ketat sesuai spec PDF)
+        $validated = $request->validate([
+            'student_nim' => ['required', 'string', 'regex:/^[0-9]{8,12}$/'],
+            'student_name' => ['required', 'string', 'min:3', 'max:100'],
+            'student_email' => ['required', 'email'],
+            'course_code' => ['required', 'string', 'regex:/^[A-Z]{2,4}[0-9]{3}$/'],
+            'course_name' => ['required', 'string', 'min:3', 'max:120'],
+            'course_credits' => ['required', 'integer', 'min:1', 'max:6'],
+            'academic_year' => ['required', 'string', 'regex:/^[0-9]{4}\/[0-9]{4}$/'],
+            'semester' => ['required', 'in:GANJIL,GENAP'],
+            'status' => ['required', 'in:DRAFT,SUBMITTED,APPROVED,REJECTED'],
+        ], [
+            'student_nim.regex' => 'NIM harus berupa 8-12 digit angka tanpa spasi.',
+            'course_code.regex' => 'Kode MK harus berupa 2-4 huruf kapital diikuti 3 angka (contoh: IF101).',
+            'academic_year.regex' => 'Tahun Ajaran harus berformat YYYY/YYYY (contoh: 2025/2026).',
+        ]);
+
+        try {
+            // TS-02: Atomic Transaction pada 3 Tabel
+            DB::transaction(function () use ($validated) {
+                // 1. Upsert Student
+                $student = Student::firstOrCreate(
+                    ['nim' => $validated['student_nim']],
+                    [
+                        'name' => $validated['student_name'],
+                        'email' => $validated['student_email'],
+                    ]
+                );
+
+                // 2. Upsert Course
+                $course = Course::firstOrCreate(
+                    ['code' => $validated['course_code']],
+                    [
+                        'name' => $validated['course_name'],
+                        'credits' => $validated['course_credits'],
+                    ]
+                );
+
+                // 3. Create Enrollment
+                Enrollment::create([
+                    'student_id' => $student->id,
+                    'course_id' => $course->id,
+                    'academic_year' => $validated['academic_year'],
+                    'semester' => $validated['semester'],
+                    'status' => $validated['status'],
+                ]);
+            });
+
+            return redirect()->back()->with('success', 'Data KRS berhasil ditambahkan dalam 1 transaksi atomic!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menambahkan KRS: ' . $e->getMessage());
+        }
     }
 }
