@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Student;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class EnrollmentSeeder extends Seeder
 {
@@ -27,6 +28,25 @@ class EnrollmentSeeder extends Seeder
             $courses = Course::all();
         }
 
-        Enrollment::factory(200)->recycle($students)->recycle($courses)->create();
+        // Generate 200 data di memori tanpa langsung menyimpan ke DB
+        $enrollments = Enrollment::factory(200)
+            ->recycle($students)
+            ->recycle($courses)
+            ->make()
+            ->map(function ($item) {
+                return [
+                    'student_id'    => $item->student_id,
+                    'course_id'     => $item->course_id,
+                    'academic_year' => $item->academic_year,
+                    'semester'      => $item->semester,
+                    'status'        => $item->status,
+                    'created_at'    => $item->created_at ?? now(),
+                    'updated_at'    => $item->updated_at ?? now(),
+                ];
+            })
+            ->toArray();
+
+        // Abaikan baris acak yang duplikat agar proses seeding tidak crash
+        DB::table('enrollments')->insertOrIgnore($enrollments);
     }
 }
