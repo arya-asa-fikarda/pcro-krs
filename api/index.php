@@ -4,7 +4,45 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// 1. Buat direktori /tmp untuk storage
+// 1. Injeksi Environment Variables Serverless SEBELUM Laravel dimuat
+putenv('CACHE_STORE=array');
+putenv('SESSION_DRIVER=cookie');
+putenv('QUEUE_CONNECTION=sync');
+putenv('APP_MAINTENANCE_DRIVER=file');
+
+$_ENV['CACHE_STORE'] = $_SERVER['CACHE_STORE'] = 'array';
+$_ENV['SESSION_DRIVER'] = $_SERVER['SESSION_DRIVER'] = 'cookie';
+$_ENV['QUEUE_CONNECTION'] = $_SERVER['QUEUE_CONNECTION'] = 'sync';
+$_ENV['APP_MAINTENANCE_DRIVER'] = $_SERVER['APP_MAINTENANCE_DRIVER'] = 'file';
+
+// 2. Parse DATABASE_URL dari Neon jika tersedia
+$dbUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? null));
+if ($dbUrl) {
+    $dbParts = parse_url($dbUrl);
+    if (isset($dbParts['host'])) {
+        $host = $dbParts['host'];
+        $port = $dbParts['port'] ?? 5432;
+        $db   = ltrim($dbParts['path'] ?? 'neondb', '/');
+        $user = $dbParts['user'] ?? '';
+        $pass = $dbParts['pass'] ?? '';
+
+        putenv("DB_CONNECTION=pgsql");
+        putenv("DB_HOST={$host}");
+        putenv("DB_PORT={$port}");
+        putenv("DB_DATABASE={$db}");
+        putenv("DB_USERNAME={$user}");
+        putenv("DB_PASSWORD={$pass}");
+
+        $_ENV['DB_CONNECTION'] = $_SERVER['DB_CONNECTION'] = 'pgsql';
+        $_ENV['DB_HOST']       = $_SERVER['DB_HOST']       = $host;
+        $_ENV['DB_PORT']       = $_SERVER['DB_PORT']       = $port;
+        $_ENV['DB_DATABASE']   = $_SERVER['DB_DATABASE']   = $db;
+        $_ENV['DB_USERNAME']   = $_SERVER['DB_USERNAME']   = $user;
+        $_ENV['DB_PASSWORD']   = $_SERVER['DB_PASSWORD']   = $pass;
+    }
+}
+
+// 3. Buat direktori /tmp untuk storage
 $storagePath = '/tmp/storage';
 if (!is_dir($storagePath)) {
     @mkdir($storagePath . '/framework/views', 0755, true);
@@ -20,27 +58,7 @@ $app = require_once __DIR__ . '/../bootstrap/app.php';
 
 $app->useStoragePath($storagePath);
 
-// 2. Injeksi Konfigurasi Serverless Langsung ke Repository Config Laravel
-$app['config']->set('cache.default', 'array');
-$app['config']->set('session.driver', 'cookie');
-$app['config']->set('queue.default', 'sync');
-
-// 3. Parse DATABASE_URL & Timpa Konfigurasi Connection 'pgsql'
-$dbUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? null);
-
-if ($dbUrl) {
-    $dbParts = parse_url($dbUrl);
-    $app['config']->set('database.default', 'pgsql');
-    $app['config']->set('database.connections.pgsql.driver', 'pgsql');
-    $app['config']->set('database.connections.pgsql.host', $dbParts['host'] ?? '127.0.0.1');
-    $app['config']->set('database.connections.pgsql.port', $dbParts['port'] ?? 5432);
-    $app['config']->set('database.connections.pgsql.database', ltrim($dbParts['path'] ?? 'neondb', '/'));
-    $app['config']->set('database.connections.pgsql.username', $dbParts['user'] ?? '');
-    $app['config']->set('database.connections.pgsql.password', $dbParts['pass'] ?? '');
-    $app['config']->set('database.connections.pgsql.sslmode', 'require');
-}
-
-// 4. Jalankan Request Handler
+// 4. Jalankan HTTP Kernel
 try {
     $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
     $request = Request::capture();
