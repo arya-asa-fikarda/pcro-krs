@@ -23,11 +23,16 @@ foreach ($dirs as $dir) {
     }
 }
 
-// 2. Alihkan lokasi manifest bootstrap cache internal Laravel ke /tmp
-$_ENV['APP_SERVICES_CACHE'] = $bootstrapCachePath . '/services.php';
-$_ENV['APP_PACKAGES_CACHE'] = $bootstrapCachePath . '/packages.php';
-$_ENV['APP_CONFIG_CACHE']   = $bootstrapCachePath . '/config.php';
-$_ENV['APP_ROUTES_CACHE']   = $bootstrapCachePath . '/routes-v7.php';
+// 2. Set environment awal
+putenv('CACHE_STORE=array');
+putenv('SESSION_DRIVER=cookie');
+putenv('QUEUE_CONNECTION=sync');
+putenv('APP_MAINTENANCE_DRIVER=file');
+
+$_ENV['CACHE_STORE'] = $_SERVER['CACHE_STORE'] = 'array';
+$_ENV['SESSION_DRIVER'] = $_SERVER['SESSION_DRIVER'] = 'cookie';
+$_ENV['QUEUE_CONNECTION'] = $_SERVER['QUEUE_CONNECTION'] = 'sync';
+$_ENV['APP_MAINTENANCE_DRIVER'] = $_SERVER['APP_MAINTENANCE_DRIVER'] = 'file';
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -37,15 +42,34 @@ $app = require_once __DIR__ . '/../bootstrap/app.php';
 // Override path storage
 $app->useStoragePath($storagePath);
 
-// 3. Jalankan HTTP Kernel
+// 3. Timpa konfigurasi Laravel secara paksa saat aplikasi di-boot
+$app->booted(function ($app) {
+    $app['config']->set('cache.default', 'array');
+    $app['config']->set('session.driver', 'cookie');
+    $app['config']->set('queue.default', 'sync');
+
+    $dbUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? null));
+    if ($dbUrl) {
+        $dbParts = parse_url($dbUrl);
+        if (isset($dbParts['host'])) {
+            $app['config']->set('database.default', 'pgsql');
+            $app['config']->set('database.connections.pgsql.driver', 'pgsql');
+            $app['config']->set('database.connections.pgsql.host', $dbParts['host']);
+            $app['config']->set('database.connections.pgsql.port', $dbParts['port'] ?? 5432);
+            $app['config']->set('database.connections.pgsql.database', ltrim($dbParts['path'] ?? 'neondb', '/'));
+            $app['config']->set('database.connections.pgsql.username', $dbParts['user'] ?? '');
+            $app['config']->set('database.connections.pgsql.password', $dbParts['pass'] ?? '');
+            $app['config']->set('database.connections.pgsql.sslmode', 'require');
+        }
+    }
+});
+
+// 4. Jalankan HTTP Request
 try {
-    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
     $request = Request::capture();
-    $response = $kernel->handle($request);
+    $response = $app->handleRequest($request);
     $response->send();
-    $kernel->terminate($request, $response);
 } catch (\Throwable $e) {
-    // Tangkap exception secara mentah agar tidak memicu error 'Target class [view] does not exist'
     http_response_code(500);
     header('Content-Type: text/html; charset=utf-8');
     echo "<div style='font-family: sans-serif; padding: 20px; background: #fff0f0; color: #900; border: 2px solid #f00;'>";
