@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Student;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -91,7 +93,7 @@ class EnrollmentController extends Controller
 
     public function store(Request $request)
     {
-        // TS-04: Backend Validation (Ketat sesuai spec PDF)
+        // 1. Validasi Ketat Dual-Layer
         $validated = $request->validate([
             'student_nim' => ['required', 'string', 'regex:/^[0-9]{8,12}$/'],
             'student_name' => ['required', 'string', 'min:3', 'max:100'],
@@ -103,33 +105,41 @@ class EnrollmentController extends Controller
             'semester' => ['required', 'in:GANJIL,GENAP'],
             'status' => ['required', 'in:DRAFT,SUBMITTED,APPROVED,REJECTED'],
         ], [
-            'student_nim.regex' => 'NIM harus berupa 8-12 digit angka tanpa spasi.',
-            'course_code.regex' => 'Kode MK harus berupa 2-4 huruf kapital diikuti 3 angka (contoh: IF101).',
+            'student_nim.required' => 'NIM wajib diisi.',
+            'student_nim.regex' => 'NIM harus berupa 8-12 digit angka murni.',
+            'student_name.required' => 'Nama Mahasiswa wajib diisi.',
+            'student_email.required' => 'Email wajib diisi.',
+            'student_email.email' => 'Format email tidak valid.',
+            'course_code.required' => 'Kode MK wajib diisi.',
+            'course_code.regex' => 'Kode MK harus 2-4 huruf kapital diikuti 3 angka (contoh: IF101).',
+            'course_name.required' => 'Nama Mata Kuliah wajib diisi.',
+            'academic_year.required' => 'Tahun Ajaran wajib diisi.',
             'academic_year.regex' => 'Tahun Ajaran harus berformat YYYY/YYYY (contoh: 2025/2026).',
         ]);
 
         try {
-            // TS-02: Atomic Transaction pada 3 Tabel
             DB::transaction(function () use ($validated) {
-                // 1. Upsert Student
-                $student = Student::firstOrCreate(
-                    ['nim' => $validated['student_nim']],
-                    [
+                // Upsert Student dengan pencegahan email bentrok
+                $student = Student::where('nim', $validated['student_nim'])->first();
+                if (! $student) {
+                    $student = Student::create([
+                        'nim' => $validated['student_nim'],
                         'name' => $validated['student_name'],
                         'email' => $validated['student_email'],
-                    ]
-                );
+                    ]);
+                }
 
-                // 2. Upsert Course
-                $course = Course::firstOrCreate(
-                    ['code' => $validated['course_code']],
-                    [
+                // Upsert Course
+                $course = Course::where('code', $validated['course_code'])->first();
+                if (! $course) {
+                    $course = Course::create([
+                        'code' => $validated['course_code'],
                         'name' => $validated['course_name'],
                         'credits' => $validated['course_credits'],
-                    ]
-                );
+                    ]);
+                }
 
-                // 3. Create Enrollment
+                // Create Enrollment
                 Enrollment::create([
                     'student_id' => $student->id,
                     'course_id' => $course->id,
@@ -140,28 +150,53 @@ class EnrollmentController extends Controller
             });
 
             return redirect()->back()->with('success', 'Data KRS berhasil ditambahkan dalam 1 transaksi atomic!');
+        } catch (QueryException $e) {
+            Log::error('DB Store Error: ' . $e->getMessage());
+
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'students_email_unique')) {
+                return redirect()->back()->with('error', 'Gagal: Email ' . $validated['student_email'] . ' sudah digunakan oleh mahasiswa lain.');
+            }
+            if (str_contains($msg, 'students_nim_unique')) {
+                return redirect()->back()->with('error', 'Gagal: NIM ' . $validated['student_nim'] . ' sudah terdaftar.');
+            }
+            if (str_contains($msg, 'unique constraint') || $e->getCode() === '23505') {
+                return redirect()->back()->with('error', 'Gagal: Mahasiswa ini sudah mengambil mata kuliah tersebut pada Tahun Ajaran dan Semester yang sama (Data Duplikat).');
+            }
+
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat menyimpan data.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menambahkan KRS: ' . $e->getMessage());
+            Log::error('Store System Error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Terjadi kesalahan sistem.');
         }
     }
 
     public function update(Request $request, Enrollment $enrollment)
     {
-        // TS-11: Validasi Update
         $validated = $request->validate([
             'academic_year' => ['required', 'string', 'regex:/^[0-9]{4}\/[0-9]{4}$/'],
             'semester' => ['required', 'in:GANJIL,GENAP'],
             'status' => ['required', 'in:DRAFT,SUBMITTED,APPROVED,REJECTED'],
+        ], [
+            'academic_year.required' => 'Tahun Ajaran wajib diisi.',
+            'academic_year.regex' => 'Tahun Ajaran harus berformat YYYY/YYYY (contoh: 2025/2026).',
         ]);
 
-        $enrollment->update($validated);
-
-        return redirect()->back()->with('success', 'Data KRS berhasil diperbarui!');
+        try {
+            $enrollment->update($validated);
+            return redirect()->back()->with('success', 'Data KRS berhasil diperbarui!');
+        } catch (QueryException $e) {
+            Log::error('DB Update Error: ' . $e->getMessage());
+            if ($e->getCode() === '23505' || str_contains($e->getMessage(), 'unique constraint')) {
+                return redirect()->back()->with('error', 'Gagal: Perubahan menyebabkan duplikasi KRS pada periode yang sama.');
+            }
+            return redirect()->back()->with('error', 'Gagal memperbarui data.');
+        }
     }
 
     public function destroy(Enrollment $enrollment)
     {
-        // TS-12: Hard Delete Enrollment (Tanpa menghapus student/course)
         $enrollment->delete();
 
         return redirect()->back()->with('success', 'Data KRS berhasil dihapus!');
@@ -169,7 +204,6 @@ class EnrollmentController extends Controller
 
     public function exportCsv(Request $request)
     {
-        // Hilangkan batasan eksekusi waktu & memori PHP untuk ekspor 5 juta data
         set_time_limit(0);
         ini_set('memory_limit', '-1');
 
@@ -226,10 +260,8 @@ class EnrollmentController extends Controller
 
             $handle = fopen('php://output', 'w');
 
-            // Header Kolom CSV
             fputcsv($handle, ['ID Enrollment', 'NIM Mahasiswa', 'Nama Mahasiswa', 'Kode MK', 'Nama MK', 'Tahun Ajaran', 'Semester', 'Status KRS', 'Tanggal Dibuat']);
 
-            // TS-13: Cursor Generator Stream (Sangat Cepat & Tanpa Overhead OFFSET)
             $counter = 0;
             foreach ($query->orderBy('enrollments.id', 'asc')->cursor() as $row) {
                 fputcsv($handle, [
@@ -245,7 +277,6 @@ class EnrollmentController extends Controller
                 ]);
 
                 $counter++;
-                // Siram data ke browser setiap 5.000 baris
                 if ($counter % 5000 === 0) {
                     if (ob_get_level() > 0) {
                         ob_flush();

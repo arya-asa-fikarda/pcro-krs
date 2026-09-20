@@ -6,6 +6,7 @@ const props = defineProps({
     enrollments: Object,
     filters: Object,
     flash: Object,
+    errors: Object,
 });
 
 const search = ref(props.filters.search || '');
@@ -73,16 +74,27 @@ const handleSort = (field) => {
     updateParams();
 };
 
+const openCreateModal = () => {
+    form.clearErrors();
+    showCreateModal.value = true;
+};
+
 const submitCreate = () => {
     form.post('/enrollments', {
+        preserveScroll: true,
+        onError: () => {
+            showCreateModal.value = true;
+        },
         onSuccess: () => {
             showCreateModal.value = false;
             form.reset();
+            form.clearErrors();
         },
     });
 };
 
 const openEditModal = (item) => {
+    editForm.clearErrors();
     selectedEnrollment.value = item;
     editForm.academic_year = item.academic_year;
     editForm.semester = item.semester;
@@ -92,15 +104,17 @@ const openEditModal = (item) => {
 
 const submitUpdate = () => {
     editForm.put(`/enrollments/${selectedEnrollment.value.id}`, {
+        preserveScroll: true,
         onSuccess: () => {
             showEditModal.value = false;
+            editForm.clearErrors();
         },
     });
 };
 
 const deleteEnrollment = (id) => {
     if (confirm('Apakah Anda yakin ingin menghapus data KRS ini?')) {
-        router.delete(`/enrollments/${id}`);
+        router.delete(`/enrollments/${id}`, { preserveScroll: true });
     }
 };
 
@@ -108,168 +122,201 @@ watch([semester, status, matchMode, perPage], () => updateParams());
 </script>
 
 <template>
-    <div class="container py-4">
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h2 class="h3 font-weight-bold text-primary mb-1">Sistem KRS Akademik</h2>
-                <p class="text-muted small mb-0">Single Page CRUD & High-Volume Data Management (5 Juta Row Ready)</p>
-            </div>
-            <a :href="`/enrollments/export?search=${search}&semester=${semester}&status=${status}&match_mode=${matchMode}`"
-                class="btn btn-outline-success fw-bold shadow-sm" target="_blank">
-                📥 Export CSV (5M Ready)
-            </a>
-            <button @click="showCreateModal = true" class="btn btn-primary fw-bold shadow-sm">
-                + Tambah KRS Baru (Atomic 3-Table)
-            </button>
-        </div>
-
-        <!-- Flash Message -->
-        <div v-if="$page.props.flash?.success" class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ $page.props.flash.success }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-
-        <!-- Filter Panel -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small text-secondary">Live Search (NIM / Nama / Kode
-                            MK)</label>
-                        <input v-model="search" @input="onSearchInput" type="text" class="form-control"
-                            placeholder="Cari NIM, Nama, atau Kode MK..." />
+    <div class="bg-light min-vh-100 py-4">
+        <div class="container-fluid px-3 px-lg-5">
+            <!-- Top App Header -->
+            <div class="card border-0 shadow-sm mb-4 rounded-3 bg-white">
+                <div
+                    class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary px-2 py-1">v1.0 SPA</span>
+                            <h1 class="h3 font-weight-bold text-dark mb-0">Sistem KRS Akademik</h1>
+                        </div>
+                        <p class="text-muted small mb-0 mt-1">High-Volume Data Management & Single Page CRUD (5 Juta
+                            Data Ready)</p>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold small text-secondary">Semester</label>
-                        <select v-model="semester" class="form-select">
-                            <option value="">Semua Semester</option>
-                            <option value="GANJIL">GANJIL</option>
-                            <option value="GENAP">GENAP</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold small text-secondary">Status KRS</label>
-                        <select v-model="status" class="form-select">
-                            <option value="">Semua Status</option>
-                            <option value="DRAFT">DRAFT</option>
-                            <option value="SUBMITTED">SUBMITTED</option>
-                            <option value="APPROVED">APPROVED</option>
-                            <option value="REJECTED">REJECTED</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold small text-secondary">Logika Filter (TS-10)</label>
-                        <select v-model="matchMode" class="form-select">
-                            <option value="AND">AND (Semua Cocok)</option>
-                            <option value="OR">OR (Salah Satu Cocok)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold small text-secondary">Baris / Halaman</label>
-                        <select v-model="perPage" class="form-select">
-                            <option :value="10">10 Data</option>
-                            <option :value="25">25 Data</option>
-                            <option :value="50">50 Data</option>
-                            <option :value="100">100 Data</option>
-                        </select>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a :href="`/enrollments/export?search=${search}&semester=${semester}&status=${status}&match_mode=${matchMode}`"
+                            class="btn btn-outline-success fw-bold d-flex align-items-center gap-2 shadow-sm"
+                            target="_blank">
+                            <span>📥 Export CSV (5M)</span>
+                        </a>
+                        <button @click="openCreateModal"
+                            class="btn btn-primary fw-bold d-flex align-items-center gap-2 shadow-sm">
+                            <span>+ Tambah KRS Baru</span>
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Table Panel -->
-        <div class="card shadow-sm border-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th @click="handleSort('student_nim')" style="cursor: pointer;">
-                                NIM <span v-if="sortField === 'student_nim'">{{ sortDirection === 'asc' ? '▲' : '▼'
-                                }}</span>
-                            </th>
-                            <th @click="handleSort('student_name')" style="cursor: pointer;">
-                                Nama Mahasiswa <span v-if="sortField === 'student_name'">{{ sortDirection === 'asc' ?
-                                    '▲' : '▼' }}</span>
-                            </th>
-                            <th @click="handleSort('course_code')" style="cursor: pointer;">
-                                Kode MK <span v-if="sortField === 'course_code'">{{ sortDirection === 'asc' ? '▲' : '▼'
-                                }}</span>
-                            </th>
-                            <th @click="handleSort('course_name')" style="cursor: pointer;">
-                                Nama Mata Kuliah <span v-if="sortField === 'course_name'">{{ sortDirection === 'asc' ?
-                                    '▲' : '▼' }}</span>
-                            </th>
-                            <th @click="handleSort('academic_year')" style="cursor: pointer;">Tahun Ajaran</th>
-                            <th @click="handleSort('semester')" style="cursor: pointer;">Semester</th>
-                            <th @click="handleSort('status')" style="cursor: pointer;">Status</th>
-                            <th class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="item in enrollments.data" :key="item.id">
-                            <td><code>{{ item.student?.nim }}</code></td>
-                            <td class="fw-medium">{{ item.student?.name }}</td>
-                            <td><span class="badge bg-secondary">{{ item.course?.code }}</span></td>
-                            <td>{{ item.course?.name }}</td>
-                            <td>{{ item.academic_year }}</td>
-                            <td><span class="badge bg-outline-primary border text-primary">{{ item.semester }}</span>
-                            </td>
-                            <td>
-                                <span class="badge" :class="{
-                                    'bg-warning text-dark': item.status === 'DRAFT',
-                                    'bg-info text-dark': item.status === 'SUBMITTED',
-                                    'bg-success': item.status === 'APPROVED',
-                                    'bg-danger': item.status === 'REJECTED'
-                                }">{{ item.status }}</span>
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <button @click="openEditModal(item)" class="btn btn-outline-primary"
-                                        title="Edit Status/Semester">Edit</button>
-                                    <button @click="deleteEnrollment(item.id)" class="btn btn-outline-danger"
-                                        title="Hapus KRS">Hapus</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="enrollments.data.length === 0">
-                            <td colspan="8" class="text-center py-5 text-muted">Tidak ada data KRS yang cocok.</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Flash Alert Success -->
+            <div v-if="$page.props.flash?.success"
+                class="alert alert-success alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                <strong>Berhasil!</strong> {{ $page.props.flash.success }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
 
-            <!-- Pagination Footer -->
-            <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-                <small class="text-muted">
-                    Menampilkan <strong>{{ enrollments.from || 0 }}</strong> sampai <strong>{{ enrollments.to || 0
-                    }}</strong> dari total <strong>{{ enrollments.total?.toLocaleString() }}</strong> KRS
-                </small>
-                <div class="btn-group">
-                    <Link v-for="link in enrollments.links" :key="link.label" :href="link.url || '#'" class="btn btn-sm"
-                        :class="link.active ? 'btn-primary' : 'btn-outline-secondary'" v-html="link.label" />
+            <!-- Alert Error Khusus di Dalam Modal -->
+            <div v-if="$page.props.flash?.error" class="alert alert-danger alert-dismissible fade show border-0 mb-3"
+                role="alert">
+                <strong>Gagal!</strong> {{ $page.props.flash.error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="card border-0 shadow-sm mb-4 rounded-3">
+                <div class="card-body p-3 p-md-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold small text-secondary">Live Search (NIM / Nama / Kode
+                                MK)</label>
+                            <input v-model="search" @input="onSearchInput" type="text" class="form-control"
+                                placeholder="Ketik min 3 karakter..." />
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label fw-bold small text-secondary">Semester</label>
+                            <select v-model="semester" class="form-select">
+                                <option value="">Semua Semester</option>
+                                <option value="GANJIL">GANJIL</option>
+                                <option value="GENAP">GENAP</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label fw-bold small text-secondary">Status KRS</label>
+                            <select v-model="status" class="form-select">
+                                <option value="">Semua Status</option>
+                                <option value="DRAFT">DRAFT</option>
+                                <option value="SUBMITTED">SUBMITTED</option>
+                                <option value="APPROVED">APPROVED</option>
+                                <option value="REJECTED">REJECTED</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label fw-bold small text-secondary">Logika Filter (TS-10)</label>
+                            <select v-model="matchMode" class="form-select">
+                                <option value="AND">AND (Semua Cocok)</option>
+                                <option value="OR">OR (Salah Satu)</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label fw-bold small text-secondary">Baris / Hal</label>
+                            <select v-model="perPage" class="form-select">
+                                <option :value="10">10 Data</option>
+                                <option :value="25">25 Data</option>
+                                <option :value="50">50 Data</option>
+                                <option :value="100">100 Data</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Data Table Card -->
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-nowrap">
+                        <thead class="table-light">
+                            <tr>
+                                <th @click="handleSort('student_nim')" style="cursor: pointer;" class="py-3 px-3">
+                                    NIM <span v-if="sortField === 'student_nim'">{{ sortDirection === 'asc' ? '▲' : '▼'
+                                    }}</span>
+                                </th>
+                                <th @click="handleSort('student_name')" style="cursor: pointer;" class="py-3 px-3">
+                                    Nama Mahasiswa <span v-if="sortField === 'student_name'">{{ sortDirection === 'asc'
+                                        ? '▲' : '▼' }}</span>
+                                </th>
+                                <th @click="handleSort('course_code')" style="cursor: pointer;" class="py-3 px-3">
+                                    Kode MK <span v-if="sortField === 'course_code'">{{ sortDirection === 'asc' ? '▲' :
+                                        '▼' }}</span>
+                                </th>
+                                <th @click="handleSort('course_name')" style="cursor: pointer;" class="py-3 px-3">
+                                    Nama Mata Kuliah <span v-if="sortField === 'course_name'">{{ sortDirection === 'asc'
+                                        ? '▲' : '▼' }}</span>
+                                </th>
+                                <th @click="handleSort('academic_year')" style="cursor: pointer;" class="py-3 px-3">
+                                    Tahun Ajaran</th>
+                                <th @click="handleSort('semester')" style="cursor: pointer;" class="py-3 px-3">Semester
+                                </th>
+                                <th @click="handleSort('status')" style="cursor: pointer;" class="py-3 px-3">Status</th>
+                                <th class="text-center py-3 px-3">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in enrollments.data" :key="item.id">
+                                <td class="px-3"><code>{{ item.student?.nim }}</code></td>
+                                <td class="fw-semibold px-3">{{ item.student?.name }}</td>
+                                <td class="px-3"><span class="badge bg-secondary">{{ item.course?.code }}</span></td>
+                                <td class="px-3">{{ item.course?.name }}</td>
+                                <td class="px-3">{{ item.academic_year }}</td>
+                                <td class="px-3"><span class="badge bg-light text-primary border border-primary">{{
+                                    item.semester }}</span></td>
+                                <td class="px-3">
+                                    <span class="badge px-2 py-1" :class="{
+                                        'bg-warning text-dark': item.status === 'DRAFT',
+                                        'bg-info text-dark': item.status === 'SUBMITTED',
+                                        'bg-success': item.status === 'APPROVED',
+                                        'bg-danger': item.status === 'REJECTED'
+                                    }">{{ item.status }}</span>
+                                </td>
+                                <td class="text-center px-3">
+                                    <div class="btn-group btn-group-sm">
+                                        <button @click="openEditModal(item)"
+                                            class="btn btn-outline-primary">Edit</button>
+                                        <button @click="deleteEnrollment(item.id)"
+                                            class="btn btn-outline-danger">Hapus</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="enrollments.data.length === 0">
+                                <td colspan="8" class="text-center py-5 text-muted">Tidak ada data KRS yang cocok.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Pagination -->
+                <div
+                    class="card-footer bg-white border-0 py-3 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                    <small class="text-muted">
+                        Menampilkan <strong>{{ enrollments.from || 0 }}</strong> - <strong>{{ enrollments.to || 0
+                        }}</strong> dari <strong>{{ enrollments.total?.toLocaleString() }}</strong> KRS
+                    </small>
+                    <div class="btn-group overflow-auto">
+                        <Link v-for="link in enrollments.links" :key="link.label" :href="link.url || '#'"
+                            class="btn btn-sm" :class="link.active ? 'btn-primary fw-bold' : 'btn-outline-secondary'"
+                            v-html="link.label" />
+                    </div>
+                </div>
+            </div>
+
+            <footer class="text-center py-4 text-muted small mt-4 border-top">
+                Developed with ❤️ by <strong class="text-primary">Arya Asa Fikarda</strong> &copy; 2026 — Web Developer
+                Technical Test Submission.
+            </footer>
         </div>
 
         <!-- Modal Create -->
-        <div v-if="showCreateModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div v-if="showCreateModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6);">
             <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
+                <div class="modal-content border-0 shadow-lg">
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title fw-bold">Tambah KRS Baru (3-Table Atomic Insert)</h5>
                         <button @click="showCreateModal = false" type="button"
                             class="btn-close btn-close-white"></button>
                     </div>
                     <form @submit.prevent="submitCreate">
-                        <div class="modal-body">
+                        <div class="modal-body p-4">
                             <h6 class="fw-bold text-primary mb-3">1. Data Mahasiswa (students)</h6>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">NIM (8-12 Angka)</label>
-                                    <input v-model="form.student_nim" type="text" class="form-control"
-                                        :class="{ 'is-invalid': form.errors.student_nim }" placeholder="2026001001" />
-                                    <div v-if="form.errors.student_nim" class="invalid-feedback">{{
+                                    <label class="form-label small fw-bold">NIM (8-12 Digit Angka)</label>
+                                    <!-- Input lock angka murni max 12 digit -->
+                                    <input v-model="form.student_nim" type="text" inputmode="numeric" maxlength="12"
+                                        @input="form.student_nim = form.student_nim.replace(/[^0-9]/g, '')"
+                                        class="form-control" :class="{ 'is-invalid': form.errors.student_nim }"
+                                        placeholder="2026001001" />
+                                    <div v-if="form.errors.student_nim" class="invalid-feedback d-block">{{
                                         form.errors.student_nim }}</div>
                                 </div>
                                 <div class="col-md-4">
@@ -277,7 +324,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                     <input v-model="form.student_name" type="text" class="form-control"
                                         :class="{ 'is-invalid': form.errors.student_name }"
                                         placeholder="Budi Santoso" />
-                                    <div v-if="form.errors.student_name" class="invalid-feedback">{{
+                                    <div v-if="form.errors.student_name" class="invalid-feedback d-block">{{
                                         form.errors.student_name }}</div>
                                 </div>
                                 <div class="col-md-4">
@@ -285,7 +332,7 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                     <input v-model="form.student_email" type="email" class="form-control"
                                         :class="{ 'is-invalid': form.errors.student_email }"
                                         placeholder="budi@example.com" />
-                                    <div v-if="form.errors.student_email" class="invalid-feedback">{{
+                                    <div v-if="form.errors.student_email" class="invalid-feedback d-block">{{
                                         form.errors.student_email }}</div>
                                 </div>
                             </div>
@@ -293,10 +340,12 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                             <h6 class="fw-bold text-primary mb-3">2. Data Mata Kuliah (courses)</h6>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Kode MK (IF101)</label>
-                                    <input v-model="form.course_code" type="text" class="form-control"
+                                    <label class="form-label small fw-bold">Kode MK (contoh: IF101)</label>
+                                    <!-- Input lock uppercase max 7 digit -->
+                                    <input v-model="form.course_code" type="text" maxlength="7"
+                                        @input="form.course_code = form.course_code.toUpperCase()" class="form-control"
                                         :class="{ 'is-invalid': form.errors.course_code }" placeholder="IF101" />
-                                    <div v-if="form.errors.course_code" class="invalid-feedback">{{
+                                    <div v-if="form.errors.course_code" class="invalid-feedback d-block">{{
                                         form.errors.course_code }}</div>
                                 </div>
                                 <div class="col-md-5">
@@ -304,14 +353,14 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                     <input v-model="form.course_name" type="text" class="form-control"
                                         :class="{ 'is-invalid': form.errors.course_name }"
                                         placeholder="Pemrograman Web Lanjut" />
-                                    <div v-if="form.errors.course_name" class="invalid-feedback">{{
+                                    <div v-if="form.errors.course_name" class="invalid-feedback d-block">{{
                                         form.errors.course_name }}</div>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label small fw-bold">SKS (1-6)</label>
                                     <input v-model="form.course_credits" type="number" min="1" max="6"
                                         class="form-control" :class="{ 'is-invalid': form.errors.course_credits }" />
-                                    <div v-if="form.errors.course_credits" class="invalid-feedback">{{
+                                    <div v-if="form.errors.course_credits" class="invalid-feedback d-block">{{
                                         form.errors.course_credits }}</div>
                                 </div>
                             </div>
@@ -320,9 +369,9 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">Tahun Ajaran (YYYY/YYYY)</label>
-                                    <input v-model="form.academic_year" type="text" class="form-control"
+                                    <input v-model="form.academic_year" type="text" maxlength="9" class="form-control"
                                         :class="{ 'is-invalid': form.errors.academic_year }" placeholder="2025/2026" />
-                                    <div v-if="form.errors.academic_year" class="invalid-feedback">{{
+                                    <div v-if="form.errors.academic_year" class="invalid-feedback d-block">{{
                                         form.errors.academic_year }}</div>
                                 </div>
                                 <div class="col-md-4">
@@ -332,8 +381,6 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                         <option value="GANJIL">GANJIL</option>
                                         <option value="GENAP">GENAP</option>
                                     </select>
-                                    <div v-if="form.errors.semester" class="invalid-feedback">{{ form.errors.semester }}
-                                    </div>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">Status KRS</label>
@@ -344,8 +391,6 @@ watch([semester, status, matchMode, perPage], () => updateParams());
                                         <option value="APPROVED">APPROVED</option>
                                         <option value="REJECTED">REJECTED</option>
                                     </select>
-                                    <div v-if="form.errors.status" class="invalid-feedback">{{ form.errors.status }}
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -361,44 +406,38 @@ watch([semester, status, matchMode, perPage], () => updateParams());
             </div>
         </div>
 
-        <!-- Modal Edit (TS-11) -->
-        <div v-if="showEditModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <!-- Modal Edit -->
+        <div v-if="showEditModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.6);">
             <div class="modal-dialog modal-md modal-dialog-centered">
-                <div class="modal-content">
+                <div class="modal-content border-0 shadow-lg">
                     <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title fw-bold">Edit Status / Semester KRS (TS-11)</h5>
+                        <h5 class="modal-title fw-bold">Edit Status / Semester KRS</h5>
                         <button @click="showEditModal = false" type="button" class="btn-close"></button>
                     </div>
                     <form @submit.prevent="submitUpdate">
-                        <div class="modal-body">
+                        <div class="modal-body p-4">
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Tahun Ajaran</label>
-                                <input v-model="editForm.academic_year" type="text" class="form-control"
+                                <input v-model="editForm.academic_year" type="text" maxlength="9" class="form-control"
                                     :class="{ 'is-invalid': editForm.errors.academic_year }" />
-                                <div v-if="editForm.errors.academic_year" class="invalid-feedback">{{
+                                <div v-if="editForm.errors.academic_year" class="invalid-feedback d-block">{{
                                     editForm.errors.academic_year }}</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Semester</label>
-                                <select v-model="editForm.semester" class="form-select"
-                                    :class="{ 'is-invalid': editForm.errors.semester }">
+                                <select v-model="editForm.semester" class="form-select">
                                     <option value="GANJIL">GANJIL</option>
                                     <option value="GENAP">GENAP</option>
                                 </select>
-                                <div v-if="editForm.errors.semester" class="invalid-feedback">{{
-                                    editForm.errors.semester }}</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Status KRS</label>
-                                <select v-model="editForm.status" class="form-select"
-                                    :class="{ 'is-invalid': editForm.errors.status }">
+                                <select v-model="editForm.status" class="form-select">
                                     <option value="DRAFT">DRAFT</option>
                                     <option value="SUBMITTED">SUBMITTED</option>
                                     <option value="APPROVED">APPROVED</option>
                                     <option value="REJECTED">REJECTED</option>
                                 </select>
-                                <div v-if="editForm.errors.status" class="invalid-feedback">{{ editForm.errors.status }}
-                                </div>
                             </div>
                         </div>
                         <div class="modal-footer bg-light">

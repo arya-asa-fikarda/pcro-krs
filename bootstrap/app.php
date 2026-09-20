@@ -12,7 +12,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // 1. Mendaftarkan Middleware Inertia
+        $middleware->web(append: [
+            \App\Http\Middleware\HandleInertiaRequests::class,
+        ]);
+
+        // 2. Kecualikan Route Enrollments dari CSRF Protection agar bisa dites via Postman / API Client
+        $middleware->validateCsrfTokens(except: [
+            'enrollments',
+            'enrollments/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -1,0 +1,188 @@
+{
+    "info": {
+        "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "name": "Sistem KRS Akademik API Collection",
+        "description": "Postman Collection untuk Pengujian Tes Teknis Single Page KRS Akademik (TS-01 s.d. TS-13)",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. Get Enrollments List (Paginated & Filtered)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "http://127.0.0.1:8000/enrollments?page=1&per_page=10&search=&semester=GANJIL&status=APPROVED&match_mode=AND&sort_field=student_name&sort_direction=desc",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "enrollments"
+                    ],
+                    "query": [
+                        {
+                            "key": "page",
+                            "value": "1"
+                        },
+                        {
+                            "key": "per_page",
+                            "value": "10"
+                        },
+                        {
+                            "key": "search",
+                            "value": ""
+                        },
+                        {
+                            "key": "semester",
+                            "value": "GANJIL"
+                        },
+                        {
+                            "key": "status",
+                            "value": "APPROVED"
+                        },
+                        {
+                            "key": "match_mode",
+                            "value": "AND"
+                        },
+                        {
+                            "key": "sort_field",
+                            "value": "student_name"
+                        },
+                        {
+                            "key": "sort_direction",
+                            "value": "desc"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "2. Create KRS (Atomic 3-Table Transaction)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"student_nim\": \"2026001099\",\n  \"student_name\": \"Ahmad Syafiq\",\n  \"student_email\": \"ahmad@example.com\",\n  \"course_code\": \"IF999\",\n  \"course_name\": \"Arsitektur Cloud Modern\",\n  \"course_credits\": 4,\n  \"academic_year\": \"2025/2026\",\n  \"semester\": \"GANJIL\",\n  \"status\": \"APPROVED\"\n}"
+                },
+                "url": {
+                    "raw": "http://127.0.0.1:8000/enrollments",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "enrollments"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "3. Update KRS Status / Semester",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"academic_year\": \"2025/2026\",\n  \"semester\": \"GENAP\",\n  \"status\": \"REJECTED\"\n}"
+                },
+                "url": {
+                    "raw": "http://127.0.0.1:8000/enrollments/1",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "enrollments",
+                        "1"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "4. Delete KRS Enrollment",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "http://127.0.0.1:8000/enrollments/1",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "enrollments",
+                        "1"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "5. Export CSV Streaming (5M Rows)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "http://127.0.0.1:8000/enrollments/export?search=&semester=&status=&match_mode=AND",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "enrollments",
+                        "export"
+                    ]
+                }
+            }
+        }
+    ]
+}

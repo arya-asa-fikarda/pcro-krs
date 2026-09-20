@@ -1,58 +1,156 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistem KRS Akademik — High-Volume Single Page Application (5M Rows Ready)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+![Laravel 13](https://img.shields.io/badge/Backend-Laravel%2013-red?style=for-the-badge&logo=laravel)
+![Vue 3](https://img.shields.io/badge/Frontend-Vue%203%20%2B%20Inertia.js-green?style=for-the-badge&logo=vuedotjs)
+![PostgreSQL 16](https://img.shields.io/badge/Database-PostgreSQL%2016-blue?style=for-the-badge&logo=postgresql)
+![Bootstrap 5](https://img.shields.io/badge/UI-Bootstrap%205-purple?style=for-the-badge&logo=bootstrap)
 
-## About Laravel
+Project ini merupakan implementasi tes teknis Full Stack Web Developer untuk mengelola data Kartu Rencana Studi (KRS) Akademik secara **Single Page Application (SPA)**. Aplikasi dirancang khusus untuk menangani kueri performa tinggi pada skala dataset **5.000.000+ baris data**.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Fitur Utama & Kepatuhan Spesifikasi (TS-01 s.d. TS-13)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Single Page CRUD Akademik**: Pengelolaan data KRS tanpa reload halaman menggunakan Inertia.js + Vue 3.
+2. **Atomic 3-Table Transaction (TS-02)**: Pembuatan KRS baru yang meng-upsert data Mahasiswa (`students`), Mata Kuliah (`courses`), dan Pengambilan KRS (`enrollments`) sekaligus dalam satu `DB::transaction` atomic.
+3. **Dual-Layer Strict Validation (TS-03 & TS-04)**: Validasi ketat di Frontend dan Backend:
+   - `student_nim`: 8–12 digit angka murni (`regex:/^[0-9]{8,12}$/`).
+   - `course_code`: Format kapital & angka (`regex:/^[A-Z]{2,4}[0-9]{3}$/`, contoh: `IF101`).
+   - `academic_year`: Format `YYYY/YYYY` (`regex:/^[0-9]{4}\/[0-9]{4}$/`).
+4. **Server-Side Query Engine (TS-05 s.d. TS-10)**:
+   - Server-Side Pagination (10, 25, 50, 100 baris per halaman).
+   - Header Sorting (ASC/DESC) pada seluruh kolom dengan indikator visual UI.
+   - Quick Filter (Semester & Status KRS) yang dapat dikombinasikan.
+   - Debounced Live Search (400ms) mencakup NIM, Nama Mahasiswa, Kode MK, dan Nama MK.
+   - Dynamic Advanced Query Logic Filter Grouping (**AND** / **OR**).
+5. **High-Volume Streaming CSV Export (TS-13)**: Mengalirkan data CSV berukuran **500 MB+ / 5 Juta Row** secara instan menggunakan `streamDownload()` dan Generator `cursor()` tanpa memicu *Out of Memory* (RAM Server mendekati 0 MB).
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🛠️ Stack Teknologi & Arsitektur
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Backend Framework**: Laravel 13.32 (PHP 8.3.22)
+- **Frontend Framework**: Vue 3 + Inertia.js (Monolith SPA Hybrid)
+- **Styling**: Bootstrap 5.3 CDN
+- **Database**: PostgreSQL 16 (Managed via Laragon / DBeaver)
+- **Asset Bundler**: Vite 8.3 dengan `@vitejs/plugin-vue`
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## 💻 Panduan Instalasi Lokal (Local Setup)
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Prasyarat
+- PHP >= 8.3 dengan ekstensi `pdo_pgsql` aktif
+- Composer
+- Node.js & NPM
+- Database PostgreSQL server berjalan di port `5432`
 
+### Langkah-Langkah Instalasi
+
+1. **Clone Repository**:
+   ```bash
+   git clone [https://github.com/arya-asa-fikarda/pcro-krs.git](https://github.com/arya-asa-fikarda/pcro-krs.git)
+   cd pcro-krs
+   ```
+
+2. **Install Dependensi Backend & Frontend**:
+   ```bash
+   composer install
+   npm install
+   ```
+
+3. **Konfigurasi Environment (`.env`)**:
+   Salin file `.env.example` menjadi `.env`:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   Pastikan konfigurasi database di file `.env` sudah sesuai dengan PostgreSQL lokal Anda:
+   ```env
+   DB_CONNECTION=pgsql
+   DB_HOST=127.0.0.1
+   DB_PORT=5432
+   DB_DATABASE=pcro_krs
+   DB_USERNAME=postgres
+   DB_PASSWORD=root
+   ```
+
+4. **Jalankan Migrasi Database & Indeks Performa**:
+   ```bash
+   php artisan migrate
+   ```
+
+5. **Jalankan Aplikasi**:
+   Buka 2 terminal terpisah:
+   - Terminal 1 (Laravel Server): `php artisan serve`
+   - Terminal 2 (Vite Asset Bundler): `npm run dev`
+
+   Akses aplikasi di browser: **`http://127.0.0.1:8000`**
+
+---
+
+## 🗄️ Seeding High-Volume 5 Juta Data (TS-01)
+
+Aplikasi menyediakan Artisan Command khusus dengan teknik *chunked batch insert* untuk meng-generate 5.000.000 data KRS tanpa menghabiskan memori server.
+
+### Cara Menjalankan Seeder:
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+php artisan app:seed-high-volume --count=5000000 --truncate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 🔧 Troubleshooting PostgreSQL Sequence ID Desync
+Jika terjadi error duplicate key `enrollments_pkey` saat melakukan penambahan data baru setelah bulk seeding, jalankan kueri berikut di DBeaver/PostgreSQL CLI untuk merekonfigurasi Auto-Increment Sequence:
 
-## Contributing
+```sql
+SELECT setval('students_id_seq', (SELECT MAX(id) FROM students));
+SELECT setval('courses_id_seq', (SELECT MAX(id) FROM courses));
+SELECT setval('enrollments_id_seq', (SELECT MAX(id) FROM enrollments));
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Verifikasi Jumlah Data:
+Buka database `pcro_krs` di DBeaver atau PostgreSQL CLI, lalu jalankan query berikut:
+```sql
+SELECT COUNT(*) FROM enrollments;
+```
+*Ekspektasi Output*: `>= 5031950`
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## ⚡ Strategi Performa & Optimalisasi Database
 
-## Security Vulnerabilities
+Untuk mempertahankan waktu respon di bawah 1 detik pada skala 5 juta data:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. **Database Indexing**:
+   Tabel PostgreSQL diindeks pada kolom-kolom kritis kueri:
+   - `students`: Index pada `nim` dan `name`.
+   - `courses`: Index pada `code` dan `name`.
+   - `enrollments`: Index pada `student_id`, `course_id`, `semester`, `status`, dan `academic_year`.
+2. **Memory-Efficient CSV Streaming**:
+   Menggunakan Query Builder `DB::table()` digabung dengan PHP Generator `cursor()` dan `ob_end_clean()`. Data dialirkan langsung dari PostgreSQL ke socket browser per *batch* 5.000 baris, menjamin RAM server tidak pernah jebol (*Zero Memory Leak*).
+3. **Eager Loading & Whitelist Sorting**:
+   Mencegah masalah *N+1 Query* pada tampilan datatable UI dan membatasi kolom sorting hanya pada kolom yang telah diizinkan (*whitelisted*).
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 🌐 Panduan Deployment Online
+
+Aplikasi ini siap didedeploy ke layanan cloud modern seperti **Supabase + Render / Koyeb / Vercel**:
+
+1. **Database Cloud**: Buat instance PostgreSQL di Supabase / Neon.tech.
+2. **Environment Variables**: Masukkan `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, dan `DB_PASSWORD` cloud pada dashboard deployment.
+3. **Build Command**:
+   ```bash
+   composer install --no-dev --optimize-autoloader
+   npm run build
+   php artisan migrate --force
+   ```
+4. **Start Command**:
+   ```bash
+   php artisan serve --host=0.0.0.0 --port=$PORT
+   ```
+
+---
+
+## 📜 Lisensi & Hak Cipta
+Hak Cipta (c) 2026 **Arya Asa Fikarda**.
+Project ini dirilis di bawah lisensi [MIT License](LICENSE).

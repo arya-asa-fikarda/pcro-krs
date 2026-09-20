@@ -1,7 +1,7 @@
 # Project Handoff
 - **Status**: Phase 9 (Final Acceptance Audit & High-Volume 5M Dataset Verification) **COMPLETED & ALL ACCEPTANCE CRITERIA SATISFIED**
 - **Database**: pcro_krs (Host: 127.0.0.1, Port: 5432, User: postgres, Pass: root)
-- **Dataset Scale**: 100,000 Students, 500 Courses, **4,982,279 Enrollments** (Verified via PostgreSQL `COUNT(*)`)
+- **Dataset Scale**: 100,000 Students, 500 Courses, **5,031,950 Enrollments** (Verified via PostgreSQL `COUNT(*)`)
 
 - **Completed Deliverables**:
   - Full Stack Single Page Akademik KRS (Laravel 13 + Vue 3 + Inertia.js + Bootstrap 5 + PostgreSQL 16).
@@ -11,9 +11,10 @@
   - Atomic Transaction Create/Upsert across `students`, `courses`, and `enrollments` within single `DB::transaction`.
   - Full CRUD: Update Enrollment & Hard Delete Enrollment (foreign key safe).
   - High-Volume CSV Streaming Export (`streamDownload` + `DB::table` + `cursor()` generator + PHP buffer cleaning) streaming 538 MB / 5M rows without memory leak.
+  - Comprehensive `README.md`, `LICENSE` (MIT), and `HANDOFF.md` documentation.
 
 - **Requirement Compliance Audit (PDF Spec)**:
-  - **TS-01 (Setup & Seed 5M)**: PASSED (4,982,279 rows verified in DB).
+  - **TS-01 (Setup & Seed 5M)**: PASSED (5,031,950 rows verified in DB).
   - **TS-02 (Atomic Transaction)**: PASSED (3-table single transaction rollback safe).
   - **TS-03 & TS-04 (FE/BE Validation)**: PASSED (Strict regex NIM 8-12 digits, Course Code `^[A-Z]{2,4}[0-9]{3}$`, Year `YYYY/YYYY`).
   - **TS-05 (Server-side Pagination)**: PASSED (10, 25, 50, 100 per page tested on 5M dataset).
