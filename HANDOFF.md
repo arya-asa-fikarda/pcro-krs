@@ -1,28 +1,25 @@
-# Project Handoff
-- **Status**: Phase 9 (Final Acceptance Audit & High-Volume 5M Dataset Verification) **COMPLETED & ALL ACCEPTANCE CRITERIA SATISFIED**
-- **Database**: pcro_krs (Host: 127.0.0.1, Port: 5432, User: postgres, Pass: root)
-- **Dataset Scale**: 100,000 Students, 500 Courses, **5,031,950 Enrollments** (Verified via PostgreSQL `COUNT(*)`)
+## 📋 Project Handoff & Completion Notes
 
-- **Completed Deliverables**:
-  - Full Stack Single Page Akademik KRS (Laravel 13 + Vue 3 + Inertia.js + Bootstrap 5 + PostgreSQL 16).
-  - High-Volume Seeder Architecture (`php artisan app:seed-high-volume` chunking 5,000 rows/batch with `insertOrIgnore`).
-  - Database Performance Indexing (`students_nim_idx`, `courses_code_idx`, `enrollments_student_id_idx`, etc.).
-  - Server-Side Query Engine: Pagination (10, 25, 50, 100), Header Sorting Whitelist, Live Search (Debounced 400ms), Quick Filters, and Dynamic AND/OR Logic Filter Groups.
-  - Atomic Transaction Create/Upsert across `students`, `courses`, and `enrollments` within single `DB::transaction`.
-  - Full CRUD: Update Enrollment & Hard Delete Enrollment (foreign key safe).
-  - High-Volume CSV Streaming Export (`streamDownload` + `DB::table` + `cursor()` generator + PHP buffer cleaning) streaming 538 MB / 5M rows without memory leak.
-  - Comprehensive `README.md`, `LICENSE` (MIT), and `HANDOFF.md` documentation.
+### 1. Feature & UI Updates
+- **Theme Support**: Terintegrasi Theme Switcher (Light, Dark SaaS Slate, & System Preference) yang tersimpan otomatis di `localStorage`.
+- **Responsive Mobile Grid**: Layout tabel, modal, dan paginasi telah dioptimalkan hingga layar smartphone kecil (344px).
+- **Atomic Operations**: Perekaman KRS secara atomic melibatkan 3 tabel (`students`, `courses`, `enrollments`) dalam 1 transaksi DB.
 
-- **Requirement Compliance Audit (PDF Spec)**:
-  - **TS-01 (Setup & Seed 5M)**: PASSED (5,031,950 rows verified in DB).
-  - **TS-02 (Atomic Transaction)**: PASSED (3-table single transaction rollback safe).
-  - **TS-03 & TS-04 (FE/BE Validation)**: PASSED (Strict regex NIM 8-12 digits, Course Code `^[A-Z]{2,4}[0-9]{3}$`, Year `YYYY/YYYY`).
-  - **TS-05 (Server-side Pagination)**: PASSED (10, 25, 50, 100 per page tested on 5M dataset).
-  - **TS-06 (Header Sorting)**: PASSED (ASC/DESC server-side whitelist).
-  - **TS-07 (Quick Filter)**: PASSED (Semester & Status).
-  - **TS-08 (Live Search)**: PASSED (Debounced 400ms).
-  - **TS-09 & TS-10 (Advanced Query AND/OR)**: PASSED (Dynamic match mode logic).
-  - **TS-11 & TS-12 (Update & Delete)**: PASSED (Full single-page CRUD).
-  - **TS-13 (High-Volume Export)**: PASSED (538 MB streamed CSV downloaded successfully).
+### 2. API & Integration Testing
+- File koleksi Postman tersedia di root project: `KRS_API_Collection.json`.
+- Seluruh 5 endpoint telah diuji dengan hasil **200 OK**:
+  1. `GET /enrollments` (Pagination & Filter skenario 5 Juta Data)
+  2. `POST /enrollments` (Create KRS)
+  3. `PUT /enrollments/{id}` (Update Status/Semester)
+  4. `DELETE /enrollments/{id}` (Hapus KRS)
+  5. `GET /enrollments/export` (Streaming CSV Export)
 
-- **Project Status**: READY FOR SUBMISSION
+### 3. Security & Exception Handling
+- Sanitasi input dan penanganan `QueryException` untuk mencegah *Information Leakage* (SQL raw error hidden from end-user).
+- Pengecualian CSRF dikonfigurasi pada route `enrollments/*` di `bootstrap/app.php` untuk memfasilitasi pengujian API via Postman.
+
+### 4. Deployment Checklists
+1. Jalankan `composer install --optimize-autoloader --no-dev`
+2. Jalankan `npm run build`
+3. Konfigurasi `.env` ke database PostgreSQL target
+4. Jalankan `php artisan migrate --force`
