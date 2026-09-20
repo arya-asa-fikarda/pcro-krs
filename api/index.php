@@ -4,33 +4,7 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// 1. Paksa driver serverless agar tidak membutuhkan tabel 'cache' atau 'sessions' di DB
-$_ENV['CACHE_STORE'] = 'array';
-$_ENV['SESSION_DRIVER'] = 'cookie';
-$_ENV['QUEUE_CONNECTION'] = 'sync';
-
-// 2. Parse DATABASE_URL secara otomatis ke variabel DB individu
-$dbUrl = $_ENV['DATABASE_URL'] ?? getenv('DATABASE_URL');
-if ($dbUrl) {
-    $dbParts = parse_url($dbUrl);
-    if (isset($dbParts['host'])) {
-        $_ENV['DB_CONNECTION'] = 'pgsql';
-        $_ENV['DB_HOST'] = $dbParts['host'];
-        $_ENV['DB_PORT'] = $dbParts['port'] ?? 5432;
-        $_ENV['DB_DATABASE'] = ltrim($dbParts['path'] ?? '', '/');
-        $_ENV['DB_USERNAME'] = $dbParts['user'] ?? '';
-        $_ENV['DB_PASSWORD'] = $dbParts['pass'] ?? '';
-
-        putenv("DB_CONNECTION=pgsql");
-        putenv("DB_HOST={$dbParts['host']}");
-        putenv("DB_PORT=" . ($dbParts['port'] ?? 5432));
-        putenv("DB_DATABASE=" . ltrim($dbParts['path'] ?? '', '/'));
-        putenv("DB_USERNAME=" . ($dbParts['user'] ?? ''));
-        putenv("DB_PASSWORD=" . ($dbParts['pass'] ?? ''));
-    }
-}
-
-// 3. Buat direktori /tmp untuk storage
+// 1. Buat direktori /tmp untuk storage
 $storagePath = '/tmp/storage';
 if (!is_dir($storagePath)) {
     @mkdir($storagePath . '/framework/views', 0755, true);
@@ -46,6 +20,27 @@ $app = require_once __DIR__ . '/../bootstrap/app.php';
 
 $app->useStoragePath($storagePath);
 
+// 2. Injeksi Konfigurasi Serverless Langsung ke Repository Config Laravel
+$app['config']->set('cache.default', 'array');
+$app['config']->set('session.driver', 'cookie');
+$app['config']->set('queue.default', 'sync');
+
+// 3. Parse DATABASE_URL & Timpa Konfigurasi Connection 'pgsql'
+$dbUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? null);
+
+if ($dbUrl) {
+    $dbParts = parse_url($dbUrl);
+    $app['config']->set('database.default', 'pgsql');
+    $app['config']->set('database.connections.pgsql.driver', 'pgsql');
+    $app['config']->set('database.connections.pgsql.host', $dbParts['host'] ?? '127.0.0.1');
+    $app['config']->set('database.connections.pgsql.port', $dbParts['port'] ?? 5432);
+    $app['config']->set('database.connections.pgsql.database', ltrim($dbParts['path'] ?? 'neondb', '/'));
+    $app['config']->set('database.connections.pgsql.username', $dbParts['user'] ?? '');
+    $app['config']->set('database.connections.pgsql.password', $dbParts['pass'] ?? '');
+    $app['config']->set('database.connections.pgsql.sslmode', 'require');
+}
+
+// 4. Jalankan Request Handler
 try {
     $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
     $request = Request::capture();
