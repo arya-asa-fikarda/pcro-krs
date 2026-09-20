@@ -4,7 +4,33 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// Siapkan folder storage di /tmp agar writable
+// 1. Paksa driver serverless agar tidak membutuhkan tabel 'cache' atau 'sessions' di DB
+$_ENV['CACHE_STORE'] = 'array';
+$_ENV['SESSION_DRIVER'] = 'cookie';
+$_ENV['QUEUE_CONNECTION'] = 'sync';
+
+// 2. Parse DATABASE_URL secara otomatis ke variabel DB individu
+$dbUrl = $_ENV['DATABASE_URL'] ?? getenv('DATABASE_URL');
+if ($dbUrl) {
+    $dbParts = parse_url($dbUrl);
+    if (isset($dbParts['host'])) {
+        $_ENV['DB_CONNECTION'] = 'pgsql';
+        $_ENV['DB_HOST'] = $dbParts['host'];
+        $_ENV['DB_PORT'] = $dbParts['port'] ?? 5432;
+        $_ENV['DB_DATABASE'] = ltrim($dbParts['path'] ?? '', '/');
+        $_ENV['DB_USERNAME'] = $dbParts['user'] ?? '';
+        $_ENV['DB_PASSWORD'] = $dbParts['pass'] ?? '';
+
+        putenv("DB_CONNECTION=pgsql");
+        putenv("DB_HOST={$dbParts['host']}");
+        putenv("DB_PORT=" . ($dbParts['port'] ?? 5432));
+        putenv("DB_DATABASE=" . ltrim($dbParts['path'] ?? '', '/'));
+        putenv("DB_USERNAME=" . ($dbParts['user'] ?? ''));
+        putenv("DB_PASSWORD=" . ($dbParts['pass'] ?? ''));
+    }
+}
+
+// 3. Buat direktori /tmp untuk storage
 $storagePath = '/tmp/storage';
 if (!is_dir($storagePath)) {
     @mkdir($storagePath . '/framework/views', 0755, true);
